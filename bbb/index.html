@@ -1,0 +1,1386 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Briefcase, 
+  Users, 
+  CheckCircle, 
+  FileText, 
+  Menu, 
+  X, 
+  ChefHat, 
+  Coffee, 
+  Bed, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  LogIn, 
+  Trash2, 
+  UserPlus, 
+  Search, 
+  Download,
+  Eye,
+  ShieldAlert,
+  Lock,
+  User,
+  LogOut,
+  TrendingUp,
+  Calendar,
+  DollarSign,
+  BarChart2
+} from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInWithCustomToken, 
+  signInAnonymously, 
+  onAuthStateChanged
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  deleteDoc, 
+  doc, 
+  updateDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  getDocs
+} from 'firebase/firestore';
+
+// --- Firebase Configuration & Init ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+// --- Components ---
+
+// 1. Navigation
+const Navbar = ({ setPage, currentPage, adminUser }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <nav className="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo */}
+          <div 
+            className="flex items-center cursor-pointer gap-2" 
+            onClick={() => setPage('home')}
+          >
+            <div className="bg-amber-500 p-2 rounded-lg">
+              <Users className="h-6 w-6 text-slate-900" />
+            </div>
+            <div>
+              <span className="font-bold text-xl tracking-wider block">GET TROOPS</span>
+              <span className="text-xs text-amber-500 tracking-widest uppercase">Staffing Agency</span>
+            </div>
+          </div>
+
+          {/* Desktop Menu */}
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-baseline space-x-4">
+              <button 
+                onClick={() => setPage('home')} 
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'home' ? 'text-amber-500' : 'text-gray-300 hover:text-white'}`}
+              >
+                Početna
+              </button>
+              <button 
+                onClick={() => setPage('apply')} 
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 'apply' ? 'text-amber-500' : 'text-gray-300 hover:text-white'}`}
+              >
+                Prijava za posao
+              </button>
+              
+              {adminUser ? (
+                <button 
+                  onClick={() => setPage('admin')} 
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <ShieldAlert size={16} /> Panel ({adminUser.name})
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setPage('login')} 
+                  className="border border-slate-600 hover:border-amber-500 text-gray-300 hover:text-amber-500 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <LogIn size={16} /> Staff Login
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="-mr-2 flex md:hidden">
+            <button 
+              onClick={() => setIsOpen(!isOpen)} 
+              className="bg-slate-800 inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-slate-700 focus:outline-none"
+            >
+              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden bg-slate-800">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            <button 
+              onClick={() => { setPage('home'); setIsOpen(false); }} 
+              className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+            >
+              Početna
+            </button>
+            <button 
+              onClick={() => { setPage('apply'); setIsOpen(false); }} 
+              className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+            >
+              Prijava za posao
+            </button>
+            <button 
+              onClick={() => { setPage(adminUser ? 'admin' : 'login'); setIsOpen(false); }} 
+              className="text-amber-500 font-bold block px-3 py-2 rounded-md text-base w-full text-left"
+            >
+              {adminUser ? `Panel (${adminUser.name})` : 'Staff Login'}
+            </button>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+};
+
+// 2. Hero Section
+const Hero = ({ setPage }) => (
+  <div className="relative bg-slate-900 overflow-hidden">
+    <div className="absolute inset-0">
+      <img 
+        className="w-full h-full object-cover opacity-20" 
+        src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80" 
+        alt="Hospitality background" 
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-900 to-slate-900/50 mix-blend-multiply" />
+    </div>
+    <div className="relative max-w-7xl mx-auto py-24 px-4 sm:py-32 sm:px-6 lg:px-8 flex flex-col items-center text-center">
+      <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
+        Vaša karijera u <span className="text-amber-500">turizmu</span> počinje ovdje
+      </h1>
+      <p className="mt-6 text-xl text-gray-300 max-w-3xl">
+        Get Troops povezuje vrhunske hotele i restorane sa najboljim sezonskim radnicima. 
+        Tražimo motivisane ljude spremne za rad na najboljim lokacijama.
+      </p>
+      <div className="mt-10 max-w-sm mx-auto sm:max-w-none sm:flex sm:justify-center">
+        <button 
+          onClick={() => setPage('apply')}
+          className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-slate-900 bg-amber-500 hover:bg-amber-400 md:py-4 md:text-lg md:px-10 transition-all shadow-lg hover:shadow-amber-500/20"
+        >
+          <Briefcase className="mr-2 h-5 w-5" />
+          Prijavi se odmah
+        </button>
+        <button 
+           onClick={() => {
+             const element = document.getElementById('about');
+             element?.scrollIntoView({ behavior: 'smooth' });
+           }}
+          className="mt-3 w-full flex items-center justify-center px-8 py-3 border border-gray-500 text-base font-medium rounded-md text-gray-200 bg-transparent hover:bg-slate-800 md:mt-0 md:ml-3 md:py-4 md:text-lg md:px-10 transition-all"
+        >
+          Saznaj više
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+// 3. Application Form
+const ApplicationForm = ({ user, setPage }) => {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    position: 'Konobar',
+    experience: '',
+    about: '',
+    cvFile: null
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const positions = [
+    { id: 'Konobar', label: 'Konobar / Waiter', icon: Coffee },
+    { id: 'Kuhar', label: 'Kuhar / Chef', icon: ChefHat },
+    { id: 'Sobarica', label: 'Sobarica / Housekeeping', icon: Bed },
+    { id: 'Recepcioner', label: 'Recepcioner / Receptionist', icon: Users },
+    { id: 'Ostalo', label: 'Ostalo / Other', icon: Briefcase },
+  ];
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.size > 500000) { 
+      alert("Molimo priložite manji fajl (max 500KB) ili PDF.");
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, cvFile: reader.result, cvName: file.name }));
+    };
+    if (file) {
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'applications'), {
+        ...formData,
+        status: 'new', // new, reviewed, rejected, hired
+        createdAt: serverTimestamp(),
+        userId: user.uid
+      });
+      
+      setSuccess(true);
+      setFormData({
+        firstName: '', lastName: '', email: '', phone: '', position: 'Konobar', experience: '', about: '', cvFile: null
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      
+      setTimeout(() => {
+        setPage('home');
+      }, 3000);
+    } catch (error) {
+      console.error("Error submitting:", error);
+      alert("Došlo je do greške. Molimo pokušajte ponovo.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Prijava uspješna!</h2>
+            <p className="text-gray-600">Vaši podaci su poslani našem timu. Kontaktirat ćemo vas uskoro.</p>
+            <button onClick={() => setPage('home')} className="mt-6 text-amber-600 hover:text-amber-500 font-medium">
+              Povratak na početnu
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+          <div className="bg-slate-900 py-6 px-8">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <FileText className="text-amber-500" />
+              Prijava za sezonski posao
+            </h2>
+            <p className="text-slate-400 mt-1">Popunite formu ispod kako biste postali dio našeg tima.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="py-8 px-8 space-y-6">
+            
+            {/* Personal Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Ime</label>
+                <input 
+                  type="text" 
+                  name="firstName"
+                  required
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3 border focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Prezime</label>
+                <input 
+                  type="text" 
+                  name="lastName"
+                  required
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3 border focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email adresa</label>
+                <input 
+                  type="email" 
+                  name="email"
+                  required
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3 border focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Broj telefona (Viber/WhatsApp)</label>
+                <input 
+                  type="tel" 
+                  name="phone"
+                  required
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="+387 61 ..."
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3 border focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            {/* Position Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Željena pozicija</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {positions.map((pos) => {
+                  const Icon = pos.icon;
+                  return (
+                    <div 
+                      key={pos.id}
+                      onClick={() => setFormData(prev => ({ ...prev, position: pos.id }))}
+                      className={`cursor-pointer border rounded-lg p-4 flex flex-col items-center justify-center text-center transition-all ${
+                        formData.position === pos.id 
+                          ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-500' 
+                          : 'bg-white border-gray-200 hover:border-amber-300'
+                      }`}
+                    >
+                      <Icon className={`h-6 w-6 mb-2 ${formData.position === pos.id ? 'text-amber-600' : 'text-gray-400'}`} />
+                      <span className={`text-sm font-medium ${formData.position === pos.id ? 'text-amber-900' : 'text-gray-900'}`}>
+                        {pos.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Experience */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Godine iskustva</label>
+              <select
+                name="experience"
+                value={formData.experience}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3 border focus:ring-amber-500 focus:border-amber-500 bg-white"
+              >
+                <option value="">Odaberite...</option>
+                <option value="Bez iskustva">Bez iskustva (Početnik)</option>
+                <option value="1-2 godine">1-2 godine</option>
+                <option value="3-5 godina">3-5 godina</option>
+                <option value="5+ godina">5+ godina (Senior)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">O sebi (Kratka biografija)</label>
+              <textarea 
+                name="about"
+                rows={4}
+                value={formData.about}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3 border focus:ring-amber-500 focus:border-amber-500"
+                placeholder="Navedite gdje ste prije radili, strane jezike koje govorite..."
+              />
+            </div>
+
+            {/* CV Upload Simulation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Priložite CV ili Fotografiju</label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-amber-500 transition-colors bg-gray-50">
+                <div className="space-y-1 text-center">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="flex text-sm text-gray-600">
+                    <label className="relative cursor-pointer bg-white rounded-md font-medium text-amber-600 hover:text-amber-500 focus-within:outline-none px-2">
+                      <span>Učitaj fajl</span>
+                      <input 
+                        ref={fileInputRef}
+                        type="file" 
+                        className="sr-only" 
+                        accept="image/*,.pdf,.doc,.docx"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    <p className="pl-1">ili prevuci ovdje</p>
+                  </div>
+                  <p className="text-xs text-gray-500">PNG, JPG, PDF do 500KB</p>
+                  {formData.cvName && (
+                    <p className="text-sm text-green-600 font-semibold mt-2">
+                      Odabrano: {formData.cvName}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-slate-900 bg-amber-500 hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Slanje...' : 'Pošalji prijavu'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 4. Admin Dashboard
+const AdminDashboard = ({ user, setPage, setAdminUser, adminUser }) => {
+  const [apps, setApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('applications'); // 'applications' or 'team'
+  
+  // Hiring Modal State
+  const [hiringApp, setHiringApp] = useState(null); // The app being processed
+  const [hireLocation, setHireLocation] = useState('');
+  const [hireFee, setHireFee] = useState('');
+
+  // New Admin Form State
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminCode, setNewAdminCode] = useState('');
+  const [existingAdmins, setExistingAdmins] = useState([]);
+
+  // Stats State
+  const [stats, setStats] = useState({ total: 0, year: 0, month: 0, week: 0 });
+  
+  // Admin Performance Stats
+  const [adminStats, setAdminStats] = useState({});
+  const [selectedAdminForView, setSelectedAdminForView] = useState(null); // Which admin's details to show
+
+  useEffect(() => {
+    if (!user) return;
+    
+    // Fetch Applications
+    const simpleQ = collection(db, 'artifacts', appId, 'public', 'data', 'applications');
+    const unsubscribeApps = onSnapshot(simpleQ, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setApps(data);
+      calculateStats(data);
+      setLoading(false);
+    }, (error) => console.error("Firestore read error:", error));
+
+    // Fetch Team (Only if Master)
+    let unsubscribeTeam = () => {};
+    if (adminUser.role === 'master') {
+        const teamQ = collection(db, 'artifacts', appId, 'public', 'data', 'admins');
+        unsubscribeTeam = onSnapshot(teamQ, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setExistingAdmins(data);
+        });
+    }
+
+    return () => {
+        unsubscribeApps();
+        unsubscribeTeam();
+    };
+  }, [user, adminUser]);
+
+  // Financial Calculations & Admin Stats
+  const calculateStats = (applications) => {
+      const now = new Date();
+      let total = 0;
+      let year = 0;
+      let month = 0;
+      let week = 0;
+      
+      const admStats = {};
+
+      applications.forEach(app => {
+          if (app.status === 'hired' && app.placementFee) {
+              const fee = parseFloat(app.placementFee) || 0;
+              total += fee;
+
+              // Time stats
+              if (app.hiredAt && app.hiredAt.seconds) {
+                  const hiredDate = new Date(app.hiredAt.seconds * 1000);
+                  
+                  if (hiredDate.getFullYear() === now.getFullYear()) {
+                      year += fee;
+                      if (hiredDate.getMonth() === now.getMonth()) {
+                          month += fee;
+                      }
+                      const oneDay = 24 * 60 * 60 * 1000;
+                      const diffDays = Math.round(Math.abs((now - hiredDate) / oneDay));
+                      if (diffDays <= 7) {
+                          week += fee;
+                      }
+                  }
+              }
+
+              // Admin Performance Stats
+              if (app.hiredBy) {
+                  const adminName = app.hiredBy;
+                  if (!admStats[adminName]) {
+                      admStats[adminName] = { count: 0, revenue: 0, jobs: [] };
+                  }
+                  admStats[adminName].count += 1;
+                  admStats[adminName].revenue += fee;
+                  admStats[adminName].jobs.push(app);
+              }
+          }
+      });
+
+      setStats({ total, year, month, week });
+      setAdminStats(admStats);
+  };
+
+  const updateStatus = async (id, newStatus) => {
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'applications', id), {
+        status: newStatus
+      });
+    } catch (err) {
+      console.error("Update failed", err);
+    }
+  };
+
+  const handleHireSubmit = async (e) => {
+      e.preventDefault();
+      if (!hiringApp || !hireLocation || !hireFee) return;
+
+      try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'applications', hiringApp.id), {
+              status: 'hired',
+              placementLocation: hireLocation,
+              placementFee: parseFloat(hireFee),
+              hiredAt: serverTimestamp(),
+              hiredBy: adminUser.name
+          });
+          setHiringApp(null);
+          setHireLocation('');
+          setHireFee('');
+          // Stats will auto-update via listener
+      } catch (err) {
+          console.error("Error hiring:", err);
+          alert("Greška pri snimanju podataka.");
+      }
+  };
+
+  const deleteApp = async (id) => {
+    if (window.confirm("Da li ste sigurni da želite obrisati ovu prijavu?")) {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'applications', id));
+    }
+  };
+
+  const handleAddAdmin = async (e) => {
+      e.preventDefault();
+      if (!newAdminName || !newAdminCode) return;
+      try {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'admins'), {
+              name: newAdminName,
+              code: newAdminCode,
+              createdBy: adminUser.name,
+              createdAt: serverTimestamp()
+          });
+          setNewAdminName('');
+          setNewAdminCode('');
+          alert("Kolega uspješno dodan!");
+      } catch (error) {
+          console.error("Error adding admin", error);
+          alert("Greška pri dodavanju.");
+      }
+  };
+
+  const handleDeleteAdmin = async (id) => {
+      if(window.confirm("Obrisati pristup ovom administratoru?")) {
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'admins', id));
+      }
+  }
+
+  const filteredApps = apps.filter(app => {
+    if (filter === 'all') return true;
+    return app.status === filter;
+  });
+
+  const downloadCV = (base64, name) => {
+    if (!base64) return;
+    const link = document.createElement("a");
+    link.href = base64;
+    link.download = name || "CV_Download";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const logout = () => {
+      setAdminUser(null);
+      setPage('home');
+  }
+
+  // Combine Redzep + Existing Admins for display
+  const allAdminsForDisplay = [
+      { id: 'redzep-master', name: 'Redzep', role: 'master', code: '26f04' },
+      ...existingAdmins
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Admin Header */}
+      <div className="bg-slate-800 text-white py-6 px-4 shadow-md">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ShieldAlert className="text-amber-500" />
+              Get Troops Admin
+            </h1>
+            <p className="text-slate-400 text-sm">Prijavljen kao: <span className="text-white font-bold">{adminUser.name}</span> {adminUser.role === 'master' && '(Vlasnik)'}</p>
+          </div>
+          <div className="flex gap-3">
+             {adminUser.role === 'master' && (
+                 <button 
+                    onClick={() => setActiveTab(activeTab === 'applications' ? 'team' : 'applications')}
+                    className={`px-4 py-2 rounded text-sm flex items-center gap-2 transition-colors ${activeTab === 'team' ? 'bg-amber-600 text-white' : 'bg-slate-700 hover:bg-slate-600'}`}
+                 >
+                    <UserPlus size={16} /> 
+                    {activeTab === 'team' ? 'Nazad na Prijave' : 'Upravljanje Timom'}
+                 </button>
+             )}
+             <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm flex items-center gap-2">
+                <LogOut size={16} /> Odjava
+             </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        
+        {/* FINANCE STATS (Visible on Applications tab) */}
+        {activeTab === 'applications' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white p-5 rounded-lg shadow border-l-4 border-green-600">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Ukupna Zarada</p>
+                            <h3 className="text-2xl font-bold text-gray-800 mt-1">{stats.total.toLocaleString()} €</h3>
+                        </div>
+                        <div className="bg-green-100 p-2 rounded-full">
+                            <TrendingUp className="text-green-600 h-5 w-5" />
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-5 rounded-lg shadow border-l-4 border-blue-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Ova Godina</p>
+                            <h3 className="text-2xl font-bold text-gray-800 mt-1">{stats.year.toLocaleString()} €</h3>
+                        </div>
+                        <div className="bg-blue-100 p-2 rounded-full">
+                            <Calendar className="text-blue-600 h-5 w-5" />
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-5 rounded-lg shadow border-l-4 border-indigo-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Ovaj Mjesec</p>
+                            <h3 className="text-2xl font-bold text-gray-800 mt-1">{stats.month.toLocaleString()} €</h3>
+                        </div>
+                        <div className="bg-indigo-100 p-2 rounded-full">
+                            <Calendar className="text-indigo-600 h-5 w-5" />
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-5 rounded-lg shadow border-l-4 border-amber-500">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Zadnjih 7 dana</p>
+                            <h3 className="text-2xl font-bold text-gray-800 mt-1">{stats.week.toLocaleString()} €</h3>
+                        </div>
+                        <div className="bg-amber-100 p-2 rounded-full">
+                            <Calendar className="text-amber-600 h-5 w-5" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* TEAM MANAGEMENT TAB (MASTER ONLY) */}
+        {activeTab === 'team' && adminUser.role === 'master' && (
+            <div className="space-y-6">
+                <div className="bg-white shadow rounded-lg p-6">
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">Dodaj novog kolegu</h2>
+                    <form onSubmit={handleAddAdmin} className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="flex-1 w-full">
+                            <label className="block text-sm font-medium text-gray-700">Ime Kolege</label>
+                            <input 
+                                type="text" 
+                                value={newAdminName}
+                                onChange={(e) => setNewAdminName(e.target.value)}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                                placeholder="npr. Marko"
+                                required
+                            />
+                        </div>
+                        <div className="flex-1 w-full">
+                            <label className="block text-sm font-medium text-gray-700">Pristupni Kod</label>
+                            <input 
+                                type="text" 
+                                value={newAdminCode}
+                                onChange={(e) => setNewAdminCode(e.target.value)}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                                placeholder="npr. 5555"
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow-sm">
+                            Sačuvaj
+                        </button>
+                    </form>
+                </div>
+
+                <div className="bg-white shadow rounded-lg overflow-hidden">
+                    <div className="px-4 py-5 border-b border-gray-200">
+                        <h3 className="text-lg font-medium text-gray-900">Učinak i Lista Administratora</h3>
+                    </div>
+                    <ul className="divide-y divide-gray-200">
+                        {allAdminsForDisplay.map((admin) => {
+                             const perf = adminStats[admin.name] || { count: 0, revenue: 0, jobs: [] };
+                             return (
+                                <li key={admin.id} className={`px-4 py-4 flex flex-col sm:flex-row justify-between items-center hover:bg-gray-50 ${admin.role === 'master' ? 'bg-amber-50' : ''}`}>
+                                    <div className="flex-1 w-full mb-4 sm:mb-0">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold text-gray-900">{admin.name}</p>
+                                            {admin.role === 'master' && <span className="px-2 py-0.5 bg-amber-200 text-amber-800 text-xs rounded-full">Vlasnik</span>}
+                                        </div>
+                                        <p className="text-sm text-gray-500">Kod: <span className="font-mono bg-gray-100 px-1 rounded">{admin.code}</span></p>
+                                    </div>
+                                    
+                                    {/* Stats for this Admin */}
+                                    <div className="flex-1 w-full flex justify-between sm:justify-center items-center gap-6 mb-4 sm:mb-0">
+                                        <div className="text-center">
+                                            <p className="text-xs text-gray-500 uppercase">Angažovano</p>
+                                            <p className="text-xl font-bold text-blue-600">{perf.count}</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xs text-gray-500 uppercase">Zarada</p>
+                                            <p className="text-xl font-bold text-green-600">{perf.revenue.toLocaleString()} €</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                        {perf.count > 0 && (
+                                            <button 
+                                                onClick={() => setSelectedAdminForView({ name: admin.name, jobs: perf.jobs })}
+                                                className="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 flex items-center gap-1"
+                                            >
+                                                <BarChart2 size={16} /> Vidi Učinak
+                                            </button>
+                                        )}
+                                        {admin.role !== 'master' && (
+                                            <button onClick={() => handleDeleteAdmin(admin.id)} className="text-red-600 hover:text-red-800 p-2">
+                                                <Trash2 size={18} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </li>
+                             );
+                        })}
+                    </ul>
+                </div>
+            </div>
+        )}
+
+        {/* APPLICATIONS TAB */}
+        {activeTab === 'applications' && (
+            <>
+                {/* Stats / Filters */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div onClick={() => setFilter('all')} className={`bg-white p-4 rounded-lg shadow cursor-pointer border-l-4 ${filter === 'all' ? 'border-gray-500 ring-2 ring-gray-100' : 'border-gray-200'}`}>
+                    <h3 className="text-gray-500 text-sm font-medium">Ukupno</h3>
+                    <p className="text-xl font-bold text-gray-800">{apps.length}</p>
+                </div>
+                <div onClick={() => setFilter('new')} className={`bg-white p-4 rounded-lg shadow cursor-pointer border-l-4 ${filter === 'new' ? 'border-amber-500 ring-2 ring-amber-100' : 'border-amber-200'}`}>
+                    <h3 className="text-gray-500 text-sm font-medium">Nove</h3>
+                    <p className="text-xl font-bold text-amber-600">{apps.filter(a => a.status === 'new').length}</p>
+                </div>
+                <div onClick={() => setFilter('reviewed')} className={`bg-white p-4 rounded-lg shadow cursor-pointer border-l-4 ${filter === 'reviewed' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-blue-200'}`}>
+                    <h3 className="text-gray-500 text-sm font-medium">U obradi</h3>
+                    <p className="text-xl font-bold text-blue-600">{apps.filter(a => a.status === 'reviewed').length}</p>
+                </div>
+                <div onClick={() => setFilter('hired')} className={`bg-white p-4 rounded-lg shadow cursor-pointer border-l-4 ${filter === 'hired' ? 'border-green-500 ring-2 ring-green-100' : 'border-green-200'}`}>
+                    <h3 className="text-gray-500 text-sm font-medium">Završeno/Hired</h3>
+                    <p className="text-xl font-bold text-green-600">{apps.filter(a => a.status === 'hired').length}</p>
+                </div>
+                </div>
+
+                {/* Applications List */}
+                <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Kandidati
+                    </h3>
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            placeholder="Pretraži po imenu..." 
+                            className="pl-8 pr-4 py-1 border rounded-full text-sm focus:ring-amber-500 focus:border-amber-500"
+                        />
+                        <Search className="absolute left-2.5 top-1.5 h-4 w-4 text-gray-400" />
+                    </div>
+                </div>
+                
+                {loading ? (
+                    <div className="p-10 text-center text-gray-500">Učitavanje podataka...</div>
+                ) : filteredApps.length === 0 ? (
+                    <div className="p-10 text-center text-gray-500">Nema prijava u ovoj kategoriji.</div>
+                ) : (
+                    <ul className="divide-y divide-gray-200">
+                    {filteredApps.map((app) => (
+                        <li key={app.id} className={`hover:bg-gray-50 transition-colors ${app.status === 'hired' ? 'bg-green-50' : ''}`}>
+                        <div className="px-4 py-4 sm:px-6">
+                            <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold ${
+                                    app.status === 'hired' ? 'bg-green-200 text-green-700' : 'bg-slate-200 text-slate-600'
+                                }`}>
+                                    {app.firstName[0]}{app.lastName[0]}
+                                </div>
+                                </div>
+                                <div className="ml-4">
+                                    <p className="text-sm font-medium text-amber-600 truncate">{app.firstName} {app.lastName}</p>
+                                    <div className="flex items-center text-sm text-gray-500">
+                                        <Mail className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                                        <span className="mr-4">{app.email}</span>
+                                        <Phone className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                                        <span>{app.phone}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-end">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    app.status === 'new' ? 'bg-amber-100 text-amber-800' : 
+                                    app.status === 'reviewed' ? 'bg-blue-100 text-blue-800' : 
+                                    app.status === 'hired' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                {app.status === 'new' ? 'NOVO' : app.status === 'reviewed' ? 'U OBRADI' : 'ANGAŽOVAN'}
+                                </span>
+                                <p className="mt-1 text-xs text-gray-500">
+                                    {app.position} • {app.experience}
+                                </p>
+                            </div>
+                            </div>
+                            
+                            {/* Hired Info Details */}
+                            {app.status === 'hired' && (
+                                <div className="mt-3 bg-white p-3 rounded border border-green-200 flex justify-between items-center">
+                                    <div className="text-sm text-gray-600">
+                                        <span className="font-bold text-gray-800">Lokacija:</span> {app.placementLocation}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                        <span className="font-bold text-gray-800">Agent:</span> {app.hiredBy}
+                                    </div>
+                                    <div className="text-sm font-bold text-green-600 flex items-center bg-green-50 px-2 py-1 rounded">
+                                        + {app.placementFee} €
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="mt-4">
+                                {app.status !== 'hired' && (
+                                    <p className="text-sm text-gray-600 italic border-l-2 border-gray-300 pl-3 mb-3">
+                                        "{app.about || 'Nema opisa'}"
+                                    </p>
+                                )}
+                                <div className="flex justify-between items-center">
+                                    <div className="flex gap-2">
+                                        {app.cvFile && (
+                                            <button 
+                                                onClick={() => downloadCV(app.cvFile, app.cvName)}
+                                                className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                                            >
+                                                <Download className="mr-1 h-3 w-3" /> Preuzmi CV
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {app.status === 'new' && (
+                                            <button 
+                                                onClick={() => updateStatus(app.id, 'reviewed')}
+                                                className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                                            >
+                                                <Eye className="mr-1 h-3 w-3" /> Označi "U Obradi"
+                                            </button>
+                                        )}
+                                        {app.status !== 'hired' && (
+                                            <button 
+                                                onClick={() => setHiringApp(app)}
+                                                className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 shadow-sm"
+                                            >
+                                                <Briefcase className="mr-1 h-3 w-3" /> Angažuj (Završi)
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={() => deleteApp(app.id)}
+                                            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200"
+                                        >
+                                            <Trash2 className="mr-1 h-3 w-3" /> Obriši
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        </li>
+                    ))}
+                    </ul>
+                )}
+                </div>
+            </>
+        )}
+
+        {/* Hiring Modal */}
+        {hiringApp && (
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-2xl">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <CheckCircle className="text-green-500" />
+                        Angažuj radnika
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                        Unesite detalje o zaposlenju za: <br/> 
+                        <span className="font-bold text-gray-800">{hiringApp.firstName} {hiringApp.lastName}</span>
+                    </p>
+                    
+                    <form onSubmit={handleHireSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Gdje je poslan? (Hotel/Grad)</label>
+                            <input 
+                                type="text"
+                                required
+                                value={hireLocation}
+                                onChange={(e) => setHireLocation(e.target.value)}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-green-500 focus:border-green-500"
+                                placeholder="npr. Hotel Sunce, Makarska"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Provizija/Zarada (€)</label>
+                            <div className="relative rounded-md shadow-sm mt-1">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-gray-500 sm:text-sm">€</span>
+                                </div>
+                                <input 
+                                    type="number"
+                                    required
+                                    min="0"
+                                    value={hireFee}
+                                    onChange={(e) => setHireFee(e.target.value)}
+                                    className="block w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-2 pt-2">
+                            <button 
+                                type="button" 
+                                onClick={() => setHiringApp(null)}
+                                className="flex-1 bg-gray-100 text-gray-700 py-2 rounded hover:bg-gray-200"
+                            >
+                                Odustani
+                            </button>
+                            <button 
+                                type="submit" 
+                                className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700"
+                            >
+                                Potvrdi
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+
+        {/* Admin Performance Detail Modal */}
+        {selectedAdminForView && (
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg p-6 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-y-auto">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <BarChart2 className="text-indigo-600" />
+                                Učinak: {selectedAdminForView.name}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                                Lista završenih poslova i isporuka
+                            </p>
+                        </div>
+                        <button onClick={() => setSelectedAdminForView(null)} className="text-gray-400 hover:text-gray-600">
+                            <X size={24} />
+                        </button>
+                    </div>
+
+                    {selectedAdminForView.jobs.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">Nema zabilježenih isporuka za ovog administratora.</p>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="bg-blue-50 p-3 rounded text-center">
+                                    <span className="block text-xs text-blue-600 font-bold uppercase">Angažovano radnika</span>
+                                    <span className="text-xl font-bold text-blue-800">{selectedAdminForView.jobs.length}</span>
+                                </div>
+                                <div className="bg-green-50 p-3 rounded text-center">
+                                    <span className="block text-xs text-green-600 font-bold uppercase">Ukupna Zarada</span>
+                                    <span className="text-xl font-bold text-green-800">
+                                        {selectedAdminForView.jobs.reduce((sum, job) => sum + (parseFloat(job.placementFee) || 0), 0).toLocaleString()} €
+                                    </span>
+                                </div>
+                            </div>
+
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radnik</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lokacija (Hotel/Grad)</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Provizija</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {selectedAdminForView.jobs.map((job) => (
+                                        <tr key={job.id}>
+                                            <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {job.firstName} {job.lastName}
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                {job.placementLocation}
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap text-sm text-green-600 text-right font-bold">
+                                                {job.placementFee} €
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 text-right">
+                                                {job.hiredAt ? new Date(job.hiredAt.seconds * 1000).toLocaleDateString() : '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 5. Staff Login (Updated for Name + Code)
+const Login = ({ setPage, setAdminUser }) => {
+    const [name, setName] = useState('');
+    const [code, setCode] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        // 1. Check Master Admin (Redzep)
+        if (name.trim().toLowerCase() === 'redzep' && code.trim() === '26f04') {
+            setAdminUser({ name: 'Redzep', role: 'master' });
+            setPage('admin');
+            setIsLoading(false);
+            return;
+        }
+
+        // 2. Check Other Admins from Firestore
+        try {
+            // Fetch all admins and filter in JS (simpler for this data scale than complex indices)
+            const q = collection(db, 'artifacts', appId, 'public', 'data', 'admins');
+            const snapshot = await getDocs(q);
+            
+            let foundUser = null;
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.name.trim().toLowerCase() === name.trim().toLowerCase() && data.code === code.trim()) {
+                    foundUser = { name: data.name, role: 'standard', id: doc.id };
+                }
+            });
+
+            if (foundUser) {
+                setAdminUser(foundUser);
+                setPage('admin');
+            } else {
+                setError('Pogrešno ime ili kod! (Ako ste Redzep, koristite kod 26f04)');
+            }
+
+        } catch (err) {
+            console.error("Login error", err);
+            setError("Greška pri povezivanju sa bazom.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+            <div className="sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="flex justify-center mb-4">
+                    <div className="bg-amber-500 p-3 rounded-full">
+                        <Users className="h-10 w-10 text-slate-900" />
+                    </div>
+                </div>
+                <h2 className="text-center text-3xl font-extrabold text-white">
+                    Pristup za osoblje
+                </h2>
+                <p className="mt-2 text-center text-sm text-gray-400">
+                    Samo za autorizovane agente Get Troops
+                </p>
+            </div>
+
+            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="bg-white py-8 px-4 shadow-2xl rounded-lg sm:px-10">
+                    <form className="space-y-6" onSubmit={handleLogin}>
+                        <div>
+                            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                Vaše Ime
+                            </label>
+                            <div className="mt-1 relative rounded-md shadow-sm">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <User className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input
+                                    id="name"
+                                    name="name"
+                                    type="text"
+                                    required
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                                    placeholder="npr. Redzep"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="code" className="block text-sm font-medium text-gray-700">
+                                Pristupni Kod
+                            </label>
+                            <div className="mt-1 relative rounded-md shadow-sm">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Lock className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input
+                                    id="code"
+                                    name="code"
+                                    type="password"
+                                    required
+                                    value={code}
+                                    onChange={(e) => setCode(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                                    placeholder="Unesite kod..."
+                                />
+                            </div>
+                            {error && <p className="text-red-600 text-xs mt-2">{error}</p>}
+                        </div>
+
+                        <div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
+                            >
+                                {isLoading ? 'Provjera...' : 'Prijava'}
+                            </button>
+                        </div>
+                    </form>
+                    <div className="mt-4 text-center">
+                        <button onClick={() => setPage('home')} className="text-sm text-gray-500 hover:text-gray-900">
+                            &larr; Povratak na početnu
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// 6. Features/Info Section
+const Features = () => (
+    <div id="about" className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="lg:text-center">
+                <h2 className="text-base text-amber-600 font-semibold tracking-wide uppercase">Naše Usluge</h2>
+                <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    Sve što vam treba za sezonu
+                </p>
+                <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+                    Bilo da tražite posao ili radnike, Get Troops je vaš pouzdan partner u turizmu.
+                </p>
+            </div>
+
+            <div className="mt-10">
+                <dl className="space-y-10 md:space-y-0 md:grid md:grid-cols-3 md:gap-x-8 md:gap-y-10">
+                    <div className="relative">
+                        <dt>
+                            <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-amber-500 text-white">
+                                <Briefcase className="h-6 w-6" aria-hidden="true" />
+                            </div>
+                            <p className="ml-16 text-lg leading-6 font-medium text-gray-900">Veliki izbor poslova</p>
+                        </dt>
+                        <dd className="mt-2 ml-16 text-base text-gray-500">
+                            Surađujemo sa preko 50 hotela i restorana na Jadranu i u regiji.
+                        </dd>
+                    </div>
+                    <div className="relative">
+                        <dt>
+                            <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-amber-500 text-white">
+                                <CheckCircle className="h-6 w-6" aria-hidden="true" />
+                            </div>
+                            <p className="ml-16 text-lg leading-6 font-medium text-gray-900">Provjereni poslodavci</p>
+                        </dt>
+                        <dd className="mt-2 ml-16 text-base text-gray-500">
+                            Garantujemo sigurnost, smještaj i redovna primanja za sve naše kandidate.
+                        </dd>
+                    </div>
+                    <div className="relative">
+                        <dt>
+                            <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-amber-500 text-white">
+                                <Users className="h-6 w-6" aria-hidden="true" />
+                            </div>
+                            <p className="ml-16 text-lg leading-6 font-medium text-gray-900">24/7 Podrška</p>
+                        </dt>
+                        <dd className="mt-2 ml-16 text-base text-gray-500">
+                            Naš tim je tu za vas tokom cijelog procesa zapošljavanja i trajanja sezone.
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+);
+
+// 7. Footer
+const Footer = () => (
+    <footer className="bg-slate-900 text-gray-300">
+        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+                <h3 className="text-white text-lg font-bold mb-4">GET TROOPS</h3>
+                <p className="text-sm">
+                    Vodeća agencija za posredovanje pri zapošljavanju u turizmu i ugostiteljstvu.
+                </p>
+            </div>
+            <div>
+                <h3 className="text-white text-lg font-bold mb-4">Kontakt</h3>
+                <ul className="space-y-2 text-sm">
+                    <li className="flex items-center"><MapPin size={16} className="mr-2 text-amber-500"/> Sarajevo, Bosna i Hercegovina</li>
+                    <li className="flex items-center"><Phone size={16} className="mr-2 text-amber-500"/> +387 61 000 000</li>
+                    <li className="flex items-center"><Mail size={16} className="mr-2 text-amber-500"/> info@gettroops.com</li>
+                </ul>
+            </div>
+            <div>
+                <h3 className="text-white text-lg font-bold mb-4">Radno Vrijeme</h3>
+                <p className="text-sm">Pon - Pet: 09:00 - 17:00</p>
+                <p className="text-sm">Sub: 10:00 - 14:00</p>
+            </div>
+        </div>
+        <div className="border-t border-slate-800 py-6 text-center text-sm">
+            &copy; 2025 Get Troops Agency. Sva prava zadržana.
+        </div>
+    </footer>
+);
+
+// --- Main App Component ---
+export default function App() {
+  const [page, setPage] = useState('home');
+  const [user, setUser] = useState(null);
+  
+  // New State: Admin User Object (instead of just boolean)
+  // Example: { name: 'Redzep', role: 'master' } or { name: 'Marko', role: 'standard' }
+  const [adminUser, setAdminUser] = useState(null);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+    initAuth();
+    
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div className="font-sans text-gray-900 bg-white">
+      {/* If current page is Login, don't show Navbar */}
+      {page !== 'login' && (
+        <Navbar 
+          setPage={setPage} 
+          currentPage={page} 
+          adminUser={adminUser} 
+        />
+      )}
+
+      {/* Page Routing */}
+      {page === 'home' && (
+        <>
+          <Hero setPage={setPage} />
+          <Features />
+          <Footer />
+        </>
+      )}
+
+      {page === 'apply' && (
+        <>
+            <ApplicationForm user={user} setPage={setPage} />
+            <Footer />
+        </>
+      )}
+
+      {page === 'login' && (
+        <Login setPage={setPage} setAdminUser={setAdminUser} />
+      )}
+
+      {page === 'admin' && adminUser && (
+        <AdminDashboard 
+            user={user} 
+            setPage={setPage} 
+            adminUser={adminUser}
+            setAdminUser={setAdminUser}
+        />
+      )}
+    </div>
+  );
+}
